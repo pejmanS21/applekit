@@ -1,0 +1,14 @@
+[package]
+name = "applekit"
+version = "0.1.0"
+edition = "2021"
+description = "A macOS CLI for creating Apple Notes and Apple Reminders."
+license = "MIT"
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+clap = { version = "4.5", features = ["derive"] }
+thiserror = "1.0"
+
+[dev-dependencies]
+tempfile = "3.10"
