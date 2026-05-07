@@ -6,6 +6,7 @@ enum HelperError: Error {
     case unknownArgument(String)
     case emptyTitle
     case invalidPriority(String)
+    case invalidTag(String)
     case invalidDate
     case accessDenied
     case listNotFound(String)
@@ -18,6 +19,7 @@ struct ReminderInput {
     var due: String?
     var notes: String?
     var list: String?
+    var tags: [String] = []
     var priority: Int?
 }
 
@@ -54,6 +56,8 @@ func parseArguments(_ arguments: [String]) throws -> ReminderInput {
             input.notes = try nextValue()
         case "--list":
             input.list = try nextValue()
+        case "--tags":
+            input.tags.append(contentsOf: try parseTags(try nextValue()))
         case "--priority":
             let raw = try nextValue()
             guard let priority = Int(raw), (0...9).contains(priority) else {
@@ -70,6 +74,41 @@ func parseArguments(_ arguments: [String]) throws -> ReminderInput {
     }
 
     return input
+}
+
+func parseTags(_ rawValue: String) throws -> [String] {
+    var parsed: [String] = []
+
+    for rawTag in rawValue.split(separator: ",", omittingEmptySubsequences: false) {
+        var tag = String(rawTag).trimmingCharacters(in: .whitespacesAndNewlines)
+        if tag.hasPrefix("#") {
+            tag.removeFirst()
+        }
+
+        guard !tag.isEmpty,
+              tag.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
+              tag.rangeOfCharacter(from: .controlCharacters) == nil
+        else {
+            throw HelperError.invalidTag(tag)
+        }
+
+        parsed.append(tag)
+    }
+
+    return parsed
+}
+
+func notesWithTags(notes: String?, tags: [String]) -> String? {
+    guard !tags.isEmpty else {
+        return notes
+    }
+
+    let tagLine = tags.map { "#\($0)" }.joined(separator: " ")
+    guard let notes, !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        return tagLine
+    }
+
+    return "\(notes)\n\n\(tagLine)"
 }
 
 func requestRemindersAccess(store: EKEventStore) async throws -> Bool {
@@ -128,7 +167,7 @@ func createReminder(input: ReminderInput) async throws {
 
     let reminder = EKReminder(eventStore: store)
     reminder.title = input.title!.trimmingCharacters(in: .whitespacesAndNewlines)
-    reminder.notes = input.notes
+    reminder.notes = notesWithTags(notes: input.notes, tags: input.tags)
     reminder.calendar = try targetCalendar(store: store, listName: input.list)
 
     if let due = input.due {
@@ -164,6 +203,8 @@ func printError(_ error: Error) {
         fputs("APPLEKIT_EMPTY_TITLE\n", stderr)
     case HelperError.invalidPriority(let raw):
         fputs("APPLEKIT_INVALID_PRIORITY: \(raw)\n", stderr)
+    case HelperError.invalidTag(let raw):
+        fputs("APPLEKIT_INVALID_TAG: \(raw)\n", stderr)
     case HelperError.invalidDate:
         fputs("APPLEKIT_INVALID_DATE\n", stderr)
     case HelperError.accessDenied:

@@ -34,8 +34,10 @@ pub struct NoteCreateArgs {
     pub body: String,
     #[arg(long, default_value = "iCloud", help = "Notes account name.", value_parser = non_empty_string)]
     pub account: String,
-    #[arg(long, default_value = "Notes", help = "Folder name inside the selected account.", value_parser = non_empty_string)]
+    #[arg(long, visible_alias = "list", default_value = "Notes", help = "Folder/list name inside the selected account.", value_parser = non_empty_string)]
     pub folder: String,
+    #[arg(long = "tags", value_name = "TAG", value_delimiter = ',', help = "Comma-separated or repeated tags. A leading # is optional.", value_parser = tag_value)]
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -54,6 +56,8 @@ pub struct ReminderCreateArgs {
     pub notes: Option<String>,
     #[arg(short = 'l', long = "list", help = "Reminder list name. Uses the default list when omitted.", value_parser = non_empty_string)]
     pub list: Option<String>,
+    #[arg(long = "tags", value_name = "TAG", value_delimiter = ',', help = "Comma-separated or repeated tags. A leading # is optional.", value_parser = tag_value)]
+    pub tags: Vec<String>,
     #[arg(long, help = "EventKit priority, from 0 to 9.", value_parser = clap::value_parser!(u8).range(0..=9))]
     pub priority: Option<u8>,
 }
@@ -73,6 +77,22 @@ fn validate_due(value: &str) -> std::result::Result<String, String> {
         .map_err(|_| "invalid due datetime; expected format YYYY-MM-DD HH:MM".to_string())
 }
 
+fn tag_value(value: &str) -> std::result::Result<String, String> {
+    let trimmed = value.trim().trim_start_matches('#');
+    if trimmed.is_empty() {
+        return Err("tag must not be empty".to_string());
+    }
+
+    if trimmed
+        .chars()
+        .any(|ch| ch.is_whitespace() || ch.is_control())
+    {
+        return Err("tag must not contain whitespace".to_string());
+    }
+
+    Ok(trimmed.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -86,5 +106,13 @@ mod tests {
     fn validates_due_format() {
         assert!(validate_due("2026-05-04 09:00").is_ok());
         assert!(validate_due("2026-05-04T09:00:00Z").is_err());
+    }
+
+    #[test]
+    fn normalizes_tags() {
+        assert_eq!(tag_value("#work").unwrap(), "work");
+        assert_eq!(tag_value(" urgent ").unwrap(), "urgent");
+        assert!(tag_value("two words").is_err());
+        assert!(tag_value("#").is_err());
     }
 }

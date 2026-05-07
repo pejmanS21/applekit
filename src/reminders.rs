@@ -35,6 +35,9 @@ fn build_helper_command(helper: &PathBuf, args: &ReminderCreateArgs) -> Command 
     if let Some(list) = &args.list {
         command.arg("--list").arg(list);
     }
+    if !args.tags.is_empty() {
+        command.arg("--tags").arg(args.tags.join(","));
+    }
     if let Some(priority) = args.priority {
         command.arg("--priority").arg(priority.to_string());
     }
@@ -81,6 +84,8 @@ fn classify_helper_error(stderr: &str) -> AppError {
         AppError::ReminderListNotFound(list.trim().to_string())
     } else if trimmed.contains("APPLEKIT_INVALID_DATE") {
         AppError::InvalidReminderDate
+    } else if let Some(tag) = trimmed.strip_prefix("APPLEKIT_INVALID_TAG:") {
+        AppError::InvalidTag(tag.trim().to_string())
     } else if trimmed.is_empty() {
         AppError::ReminderHelperFailed("helper exited with no error output".to_string())
     } else {
@@ -107,6 +112,10 @@ mod tests {
             classify_helper_error("APPLEKIT_INVALID_DATE"),
             AppError::InvalidReminderDate
         ));
+        assert!(matches!(
+            classify_helper_error("APPLEKIT_INVALID_TAG: two words"),
+            AppError::InvalidTag(tag) if tag == "two words"
+        ));
     }
 
     #[test]
@@ -116,6 +125,7 @@ mod tests {
             due: Some("2026-05-05 17:30".to_string()),
             notes: Some("Attach final PDF".to_string()),
             list: Some("Work".to_string()),
+            tags: vec!["finance".to_string(), "urgent".to_string()],
             priority: Some(5),
         };
 
@@ -136,6 +146,8 @@ mod tests {
                 "Attach final PDF",
                 "--list",
                 "Work",
+                "--tags",
+                "finance,urgent",
                 "--priority",
                 "5"
             ]

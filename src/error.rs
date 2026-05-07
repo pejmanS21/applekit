@@ -47,6 +47,9 @@ pub enum AppError {
     #[error("invalid reminder due datetime; expected format YYYY-MM-DD HH:MM")]
     InvalidReminderDate,
 
+    #[error("invalid tag \"{0}\". Tags must be non-empty and must not contain whitespace.")]
+    InvalidTag(String),
+
     #[error("reminder helper failed: {0}")]
     ReminderHelperFailed(String),
 }
@@ -60,7 +63,8 @@ impl AppError {
             | AppError::NotesFolderNotFound { .. }
             | AppError::RemindersAccessDenied
             | AppError::ReminderListNotFound(_)
-            | AppError::InvalidReminderDate => 2,
+            | AppError::InvalidReminderDate
+            | AppError::InvalidTag(_) => 2,
             AppError::OsascriptFailed(_)
             | AppError::OsascriptIo(_)
             | AppError::ReminderHelperNotFound

@@ -29,9 +29,10 @@ end run
 "#;
 
 pub fn create_note(args: &NoteCreateArgs) -> Result<()> {
+    let body = body_with_tags(&args.body, &args.tags);
     let output = run_osascript([
         args.title.as_str(),
-        args.body.as_str(),
+        body.as_str(),
         args.account.as_str(),
         args.folder.as_str(),
     ])?;
@@ -46,6 +47,21 @@ pub fn create_note(args: &NoteCreateArgs) -> Result<()> {
         &args.account,
         &args.folder,
     ))
+}
+
+fn body_with_tags(body: &str, tags: &[String]) -> String {
+    if tags.is_empty() {
+        return body.to_string();
+    }
+
+    format!("{body}\n\n{}", hashtag_line(tags))
+}
+
+fn hashtag_line(tags: &[String]) -> String {
+    tags.iter()
+        .map(|tag| format!("#{tag}"))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn run_osascript<const N: usize>(args: [&str; N]) -> Result<std::process::Output> {
@@ -130,5 +146,12 @@ mod tests {
             classify_osascript_error("Not authorized to send Apple events", "iCloud", "Notes"),
             AppError::NotesAutomationDenied
         ));
+    }
+
+    #[test]
+    fn appends_tags_as_hashtags() {
+        let tags = vec!["work".to_string(), "urgent".to_string()];
+        assert_eq!(body_with_tags("Body", &tags), "Body\n\n#work #urgent");
+        assert_eq!(body_with_tags("Body", &[]), "Body");
     }
 }
