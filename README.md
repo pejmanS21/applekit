@@ -39,6 +39,24 @@ Run from the repository:
 ./target/release/applekit --help
 ```
 
+## Install With Homebrew
+
+Install from this repository as a tap:
+
+```sh
+brew tap pejmanS21/applekit https://github.com/pejmanS21/applekit.git
+brew install applekit
+```
+
+Homebrew's one-argument tap form expects a repository named `homebrew-applekit`. If you create that separate tap repository later, users can install with:
+
+```sh
+brew tap pejmanS21/applekit
+brew install applekit
+```
+
+The formula builds the Rust CLI and Swift helper, then installs both executables into Homebrew's `bin` directory so reminder commands can find `ReminderHelper` next to `applekit`.
+
 ## Usage
 
 Create a note:
