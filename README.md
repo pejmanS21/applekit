@@ -4,15 +4,14 @@
 
 - Notes are created through AppleScript executed by `/usr/bin/osascript`.
 - Reminders are created by a Swift helper that uses EventKit.
-- All data is sent only to local Apple apps and frameworks on your Mac.
+- Data stays on the local Mac and is passed only to Apple apps and frameworks.
 
 ## Requirements
 
 - macOS
 - Rust toolchain (`cargo`)
-- Xcode Command Line Tools for `swiftc`
-- Apple Notes app
-- Apple Reminders app/EventKit
+- Xcode Command Line Tools (`xcode-select --install`)
+- Notes.app and Reminders.app
 
 ## Build
 
@@ -28,38 +27,19 @@ Build the Swift Reminders helper:
 ./scripts/build-swift-helper.sh
 ```
 
-The helper is compiled to:
+The helper is written to:
 
 ```text
 target/helper/ReminderHelper
 ```
 
-The CLI looks for the helper in this order:
-
-1. `APPLEKIT_REMINDER_HELPER`
-2. `./target/helper/ReminderHelper` relative to the current working directory
-3. `target/helper/ReminderHelper` next to the installed `applekit` binary, when available
-4. `ReminderHelper` next to the installed `applekit` binary
-
-Run from the repository after building:
+Run from the repository:
 
 ```sh
 ./target/release/applekit --help
 ```
 
-## Permissions
-
-macOS may prompt the first time each integration is used.
-
-- Notes: Automation permission is required so `osascript` can control Notes.app.
-- Reminders: Reminders access is required so the Swift helper can use EventKit.
-
-If you deny access, enable it later in System Settings:
-
-- Privacy & Security > Automation
-- Privacy & Security > Reminders
-
-## Commands
+## Usage
 
 Create a note:
 
@@ -74,7 +54,7 @@ Create a note in a specific account and folder:
 ```sh
 applekit note create \
   --title "Daily log" \
-  --body "Worked on AppleKit" \
+  --body "Worked on applekit" \
   --account "iCloud" \
   --folder "Notes"
 ```
@@ -84,10 +64,10 @@ Create a reminder:
 ```sh
 applekit reminder create \
   --title "Call doctor" \
-  --due "2026-05-04 09:00"
+  --due "2026-05-05 09:00"
 ```
 
-Create a reminder with notes, list, and priority:
+Create a reminder with notes, list, tags, and priority:
 
 ```sh
 applekit reminder create \
@@ -95,10 +75,9 @@ applekit reminder create \
   --due "2026-05-05 17:30" \
   --notes "Attach final PDF" \
   --list "Work" \
+  --tags finance,urgent \
   --priority 5
 ```
-
-## Date Format
 
 Reminder due dates use local time in this exact format:
 
@@ -106,50 +85,66 @@ Reminder due dates use local time in this exact format:
 YYYY-MM-DD HH:MM
 ```
 
-Example:
+## Helper Lookup
 
-```text
-2026-05-04 09:00
-```
+For reminder commands, `applekit` looks for `ReminderHelper` in this order:
 
-## Troubleshooting
+1. `APPLEKIT_REMINDER_HELPER`
+2. `./target/helper/ReminderHelper`
+3. `target/helper/ReminderHelper` next to the `applekit` binary
+4. `ReminderHelper` next to the `applekit` binary
 
-### `Reminder helper not found`
-
-Compile the helper:
-
-```sh
-./scripts/build-swift-helper.sh
-```
-
-Or point the CLI at a custom helper:
+Example with a custom helper:
 
 ```sh
 APPLEKIT_REMINDER_HELPER=/path/to/ReminderHelper applekit reminder create --title "Call doctor"
 ```
 
-### Notes account or folder not found
+## Permissions
 
-Confirm the account and folder names in Notes.app. The defaults are:
+macOS may prompt the first time each integration runs.
 
-```text
-account: iCloud
-folder: Notes
+- Notes requires Automation permission for the terminal app to control Notes.app.
+- Reminders requires Reminders access for EventKit.
+
+If access is denied, enable it in System Settings:
+
+- Privacy & Security > Automation
+- Privacy & Security > Reminders
+
+## Development
+
+Common checks:
+
+```sh
+cargo fmt --all -- --check
+cargo test --all-targets
+cargo build --release
+./scripts/build-swift-helper.sh
 ```
 
-### Automation permission denied
+GitHub Actions builds native macOS artifacts for arm64 and amd64 from `.github/workflows/macos-build.yml`.
 
-Open System Settings > Privacy & Security > Automation and allow your terminal app to control Notes.
+## Troubleshooting
 
-### Reminders access denied
+### Reminder helper not found
 
-Open System Settings > Privacy & Security > Reminders and allow the helper or terminal app to access Reminders. You may need to run the command again after changing the setting.
+Run:
 
-### `osascript` failed
+```sh
+./scripts/build-swift-helper.sh
+```
 
-Run the command from Terminal.app and watch for macOS permission prompts. Notes.app must be installed and available.
+Or set `APPLEKIT_REMINDER_HELPER`.
 
-## Security And Privacy
+### Notes account or folder not found
 
-`applekit` does not send note or reminder content to a server. Note text is passed to local `osascript` and Notes.app. Reminder text is passed to the local Swift helper and EventKit.
+Confirm names in Notes.app. Defaults are `iCloud` for account and `Notes` for folder.
 
+### Permission denied
+
+Open System Settings and grant Automation or Reminders access, then rerun the command.
+
+## Privacy
+
+`applekit` does not send note or reminder content to a server. Notes content goes to local `osascript` and Notes.app. Reminder content goes to the local Swift helper and EventKit.
